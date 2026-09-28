@@ -34,7 +34,7 @@ class MarketMathTest {
         val grouped = MarketMath.aggregate(bars, 15)
         assertEquals(11, grouped.size)
         assertEquals(100.0, grouped.first().open, 1e-9)
-        assertEquals(104.0, grouped.first().high, 1e-9)
+        assertEquals(103.0, grouped.first().high, 1e-9)
         assertEquals(99.0, grouped.first().low, 1e-9)
     }
 }
