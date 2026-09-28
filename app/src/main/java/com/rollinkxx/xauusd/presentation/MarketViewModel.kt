@@ -143,7 +143,7 @@ class MarketViewModel(application: Application) : AndroidViewModel(application) 
                 prefs.startingBalance = 10_000.0
                 prefs.lastHandledSignal = null
                 _state.update { it.copy(startingBalance = 10_000.0, realizedPnl = 0.0, openPnl = 0.0, positions = emptyList(), history = emptyList(), statusMessage = "Paper account reset.") }
-            }.onFailure { _state.update { it.copy(statusMessage = "Account reset failed: ${it.message}") } }
+            }.onFailure { error -> _state.update { state -> state.copy(statusMessage = "Account reset failed: ${error.message}") } }
         }
     }
 

@@ -8,7 +8,7 @@ object MarketMath {
     fun cleanCandles(input: List<Candle>, limit: Int = 5_000): List<Candle> {
         require(limit > 0)
         return input.asSequence().filter(Candle::isValid).distinctBy { it.timestamp }
-            .sortedBy { it.timestamp }.takeLast(limit).toList()
+            .sortedBy { it.timestamp }.toList().takeLast(limit)
     }
 
     fun aggregate(candles: List<Candle>, minutes: Int): List<Candle> {
