@@ -7,7 +7,7 @@
 - Strategy: WAIT when history is insufficient.
 - Paper trading: risk-based size, spread/slippage fills, costs and same-candle SL/TP conservative priority.
 - Backtest: safe empty/insufficient-history metrics.
-- Android instrumentation: application launches without login, dashboard is present, settings are reachable.
+- Android instrumentation test covers launch without login, dashboard presence and Settings navigation. The last attempted run found a case-sensitive mismatch in its expected Settings heading; the assertion was corrected to match the UI's all-caps rendering. A PR or manual-dispatch run is still needed to confirm the corrected test passes.
 
 Protocol unit fixtures are labeled synthetic parser fixtures and are never displayed or loaded into production. No real market history is bundled. Real provider integration is separate from unit tests.
 
@@ -23,7 +23,7 @@ Protocol unit fixtures are labeled synthetic parser fixtures and are never displ
 ## Honest statuses
 
 - Core deterministic unit tests: measured in CI.
-- Android build/lint/instrumentation: measured in CI.
+- Android unit tests, build and lint: passed in CI. Corrected emulator instrumentation: pending a PR/manual CI run.
 - Real feed / data freshness: blocked until a user supplies an entitled key; public demo key probes returned HTTP 401.
 - Backtest on licensed real data: not run; do not cite performance metrics.
 - Out-of-sample, walk-forward and regime robustness: unverified.

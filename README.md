@@ -32,7 +32,7 @@ Installable debug APK: `app/build/outputs/apk/debug/app-debug.apk`. Release outp
 
 ## GitHub Actions
 
-`.github/workflows/android.yml` runs for pushes to `main`, pull requests, and manual dispatch. It validates the wrapper, runs unit tests and lint, assembles debug/release, runs an Android emulator smoke test, and uploads `xauusd-android-apk` plus test/build reports. The debug APK is signed with Gradle's debug key and intended for sideload validation, not Play Store publishing. Artifact contains SHA-256 checksums and build metadata. Open the repository's **Actions → Android CI → Artifacts** to download it.
+`.github/workflows/android.yml` runs for pushes to `main`, pull requests, and manual dispatch. Every run validates the wrapper, runs unit tests and lint, assembles debug/release, and uploads `xauusd-android-apk` plus reports. Push runs skip emulator provisioning so the APK is uploaded as soon as build checks finish; the API 35 emulator smoke test runs on pull requests and manual dispatch, with a 15-minute step limit. The debug APK is signed with Gradle's debug key and intended for sideload validation, not Play Store publishing. The artifact contains SHA-256 checksums and build metadata. Open the repository's **Actions → Android CI → Artifacts** to download it.
 
 ## Safety and known limits
 

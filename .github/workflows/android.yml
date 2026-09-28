@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -33,12 +37,16 @@ jobs:
         run: |
           mkdir -p "${ANDROID_HOME}/licenses"
           printf '%s\n' '8933bad161af4178b1185d1a37fbf41ea5269c55' > "${ANDROID_HOME}/licenses/android-sdk-license"
-      - name: Install only required Android SDK packages
+      - name: Install build SDK packages
         run: >-
           sdkmanager --sdk_root="${ANDROID_HOME}" --install
           'platform-tools'
           'platforms;android-36'
           'build-tools;36.0.0'
+      - name: Install emulator test packages
+        if: ${{ github.event_name != 'push' }}
+        run: >-
+          sdkmanager --sdk_root="${ANDROID_HOME}" --install
           'emulator'
           'platforms;android-35'
           'system-images;android-35;default;x86_64'
@@ -48,6 +56,8 @@ jobs:
         id: build
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease
       - name: Run emulator install and launch smoke tests
+        if: ${{ github.event_name != 'push' }}
+        timeout-minutes: 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
