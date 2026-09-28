@@ -1,5 +1,6 @@
 package com.rollinkxx.xauusd.data.market
 
+import com.rollinkxx.xauusd.domain.model.MarketProviderId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -7,7 +8,7 @@ import java.net.URL
 import java.net.URLEncoder
 
 class TwelveDataProvider : MarketDataProvider {
-    override val name: String = "Twelve Data"
+    override val id: MarketProviderId = MarketProviderId.TWELVE_DATA
 
     override suspend fun fetchSnapshot(apiKey: String): MarketSnapshot = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "Enter your own Twelve Data API key in Settings." }
@@ -26,7 +27,7 @@ class TwelveDataProvider : MarketDataProvider {
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                ?: throw MarketDataException("Provider returned an empty response.", code)
+                ?: throw MarketDataException("Twelve Data returned an empty response.", code)
             if (code !in 200..299) {
                 val details = runCatching { TwelveDataParser.parse(body, System.currentTimeMillis() / 1000, 0) }
                     .exceptionOrNull()?.message ?: "Request failed"
@@ -35,9 +36,9 @@ class TwelveDataProvider : MarketDataProvider {
             val latency = ((System.nanoTime() - started) / 1_000_000L).coerceAtLeast(0)
             TwelveDataParser.parse(body, System.currentTimeMillis() / 1000L, latency)
         } catch (e: MarketDataException) {
-            throw MarketDataException((e.message ?: "Provider request failed.").replace(apiKey, "[redacted]"), e.statusCode)
+            throw MarketDataException((e.message ?: "Twelve Data request failed.").replace(apiKey, "[redacted]"), e.statusCode)
         } catch (e: Exception) {
-            throw MarketDataException((e.message ?: "Network request failed.").replace(apiKey, "[redacted]"))
+            throw MarketDataException((e.message ?: "Twelve Data network request failed.").replace(apiKey, "[redacted]"))
         } finally { connection.disconnect() }
     }
 }

@@ -3,6 +3,43 @@ package com.rollinkxx.xauusd.domain.model
 import kotlin.math.max
 import kotlin.math.min
 
+enum class MarketProviderId(
+    val preferenceKey: String,
+    val displayName: String,
+    val instrumentLabel: String,
+    val keyLabel: String,
+    val setupDescription: String,
+    val attribution: String,
+    val requiresApiKey: Boolean,
+    val suppliesHistoricalCandles: Boolean,
+) {
+    TWELVE_DATA(
+        preferenceKey = "twelve_data",
+        displayName = "Twelve Data",
+        instrumentLabel = "Spot XAU/USD",
+        keyLabel = "Twelve Data API key",
+        setupDescription = "Spot XAU/USD · 5-minute candles. Your account plan must include commodity and intraday time-series access.",
+        attribution = "Source: Twelve Data",
+        requiresApiKey = true,
+        suppliesHistoricalCandles = true,
+    ),
+    GOLD_API_LIVE(
+        preferenceKey = "gold_api_live",
+        displayName = "Gold API",
+        instrumentLabel = "Spot XAU/USD",
+        keyLabel = "",
+        setupDescription = "Current XAU/USD quote, no key. The public endpoint does not provide candle history; signals and paper entries stay disabled until historical candles are available.",
+        attribution = "Source: Gold API",
+        requiresApiKey = false,
+        suppliesHistoricalCandles = false,
+    );
+
+    companion object {
+        fun fromPreference(value: String?): MarketProviderId =
+            if (value == null) GOLD_API_LIVE else entries.firstOrNull { it.preferenceKey == value } ?: TWELVE_DATA
+    }
+}
+
 data class Candle(
     val timestamp: Long,
     val open: Double,
@@ -25,7 +62,7 @@ data class MarketQuote(
     val receivedAt: Long,
     val latencyMs: Long,
 ) {
-    fun isValid(): Boolean = symbol == "XAU/USD" && last.isFinite() && last > 0.0 &&
+    fun isValid(): Boolean = symbol.isNotBlank() && provider.isNotBlank() && last.isFinite() && last > 0.0 &&
         (bid == null || bid.isFinite() && bid > 0.0) && (ask == null || ask.isFinite() && ask > 0.0) &&
         (bid == null || ask == null || ask >= bid) && marketTimestamp > 0 && receivedAt > 0
 }
@@ -34,10 +71,10 @@ enum class FeedState { NOT_CONFIGURED, CONNECTING, LIVE, STALE, OFFLINE, ERROR }
 
 data class FeedStatus(
     val state: FeedState = FeedState.NOT_CONFIGURED,
-    val provider: String = "Twelve Data",
+    val provider: String = MarketProviderId.GOLD_API_LIVE.displayName,
     val lastUpdate: Long? = null,
     val latencyMs: Long? = null,
-    val message: String = "API key required; no market data is being shown.",
+    val message: String = "No key required for the current XAU/USD quote; historical candles are not included.",
 )
 
 enum class Direction { BUY, SELL, WAIT }

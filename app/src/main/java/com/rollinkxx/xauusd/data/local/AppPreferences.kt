@@ -1,9 +1,15 @@
 package com.rollinkxx.xauusd.data.local
 
 import android.content.Context
+import com.rollinkxx.xauusd.domain.model.MarketProviderId
 
 class AppPreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+
+    var marketProvider: MarketProviderId
+        get() = MarketProviderId.fromPreference(prefs.getString("market_provider", null))
+        set(value) { prefs.edit().putString("market_provider", value.preferenceKey).apply() }
+
     var startingBalance: Double
         get() = prefs.getFloat("starting_balance", 10_000.0f).toDouble()
         set(value) { prefs.edit().putFloat("starting_balance", value.toFloat()).apply() }

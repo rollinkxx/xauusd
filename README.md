@@ -1,12 +1,12 @@
 # XAUUSD Signal Lab
 
-A lightweight native Android **paper-trading** monitor for XAU/USD. It never connects to a broker and never sends a real order. The dashboard starts without a login. Until a valid, entitled Twelve Data API key is entered, it displays an offline/configuration state and creates no market price, candle, signal, or trade.
+A lightweight native Android **paper-trading** monitor for XAU/USD. It never connects to a broker and never sends a real order. The dashboard starts without a login. A fresh install defaults to Gold API for a current XAU/USD quote without a key (quote-only; no candle-based signals or new paper entries). Choose Twelve Data for historical candles and candidate signals when you have a key entitled to XAU/USD and intraday history.
 
 ## Current behavior
 
 - Kotlin + Jetpack Compose; Android SQLite for local positions and history.
-- Provider adapter contract with a Twelve Data adapter requesting the documented `XAU/USD` 5-minute time series over HTTPS.
-- API key is supplied by the user, encrypted with Android Keystore AES-GCM and not checked into the repository or logged.
+- Provider selector contains only sources that return XAU/USD: Twelve Data 5-minute candles and Gold API's current USD XAU quote.
+- Twelve Data key is supplied by the user, encrypted with Android Keystore AES-GCM and stored separately by provider; Gold API's current-price endpoint needs no key.
 - Market data is refreshed only while the app is foregrounded, every five minutes; network failures use bounded exponential retry and never fall back to fabricated values.
 - Validated 5-minute candles are aggregated locally into 15-minute, 1-hour and 4-hour chart and strategy inputs. Bid/ask are not supplied by this endpoint and are shown as unavailable.
 - Candidate `trend-pullback-v1.0` strategy uses 4h/1h EMA trend, 15m RSI, 5m EMA confirmation, ATR-based stop and a nominal 2R target. It is **not empirically validated** and its score is not a win probability.
@@ -16,9 +16,9 @@ A lightweight native Android **paper-trading** monitor for XAU/USD. It never con
 
 ## Provider and license prerequisites
 
-Twelve Data lists Gold Spot US Dollar (`XAU/USD`) in its commodity catalog and documents historical `time_series` intervals including 5 minutes. Its current individual pricing page groups commodity market access with a higher plan, so a basic/free key may not be entitled. The app does not include a global API key. Supply a key and plan that explicitly entitles you to XAU/USD and intraday time series. The provider's demo key did not return price data in the implementation environment; live-feed verification is therefore **BLOCKED** until a qualifying user key is configured.
+Twelve Data lists Gold Spot US Dollar (`XAU/USD`) and documents a 5-minute `time_series`. A plan with commodity and intraday access is required; a basic/free key may not be entitled. The app does not bundle a provider key. Gold API provides a public no-key current quote at [`/price/XAU/USD`](https://api.gold-api.com/price/XAU/USD), but its historical and OHLC endpoints require a Gold API key; the no-key app mode therefore does not claim candle history, calculate signals, or open paper trades. The rendered Gold API webpage calls the same JSON endpoint, so this app uses that documented endpoint directly instead of scraping the page.
 
-The provider terms limit data use to the subscription's allowed scope, and external display/redistribution can require explicit rights. This app is for the key owner's personal, non-commercial use; do not redistribute market data. Confirm the current plan, retention and display license with Twelve Data before commercial or public redistribution. The UI includes a `Source: Twelve Data` attribution.
+Twelve Data plan entitlements and redistribution/display rights depend on the subscription. Gold API's terms disclaim data accuracy and uninterrupted service; cache its public quote for at least 30 seconds and do not spam it. This app refreshes no more often than every five minutes and shows source attribution. Neither feed is a guaranteed universal OTC price. API Ninjas Gold Futures and Indodax XAUT/PAXG IDR markets are intentionally excluded: they are not XAU/USD spot, and the API Ninjas key entered in the old Twelve Data-only screen cannot authenticate with Twelve Data.
 
 ## Build locally
 
@@ -36,8 +36,8 @@ Installable debug APK: `app/build/outputs/apk/debug/app-debug.apk`. Release outp
 
 ## Safety and known limits
 
-- No provider key was available during implementation, so no real XAU/USD response or real market behavior was verified.
-- Provider requests use one 5-minute time-series call per refresh; actual freshness, access tier and quota depend on the user's Twelve Data account. HTTP success alone is not a latency/SLA guarantee.
+- The public Gold API current XAU/USD endpoint returned HTTP 200 in a sandbox probe; this verifies the endpoint response only, not independent price accuracy. Twelve Data historical candle access still requires the user's entitled key and has not been live-verified.
+- Twelve Data requests one 5-minute time-series call per refresh. Gold API requests only a current XAU/USD quote and has no no-key history; actual freshness is source-dependent. HTTP success alone is not a latency/SLA guarantee.
 - Candles have one provider timestamp and no bid/ask. The shown feed is a five-minute data series, not a universal OTC price or guaranteed tick stream.
 - The strategy parameters are research defaults/hypotheses, not selected by training/validation/test or walk-forward results. No accuracy/profit claim is made.
 - A chronological backtest engine exists, but it has not been run on a licensed real dataset in this environment. No out-of-sample, walk-forward, stress-test or anti-leakage result is claimed.

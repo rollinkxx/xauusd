@@ -23,16 +23,16 @@ fun ChartScreen(state: MarketUiState) {
         when (timeframe) { 5 -> MarketMath.cleanCandles(state.candles).takeLast(120); 15 -> MarketMath.aggregate(state.candles, 15).takeLast(120); 60 -> MarketMath.aggregate(state.candles, 60).takeLast(120); else -> MarketMath.aggregate(state.candles, 240).takeLast(120) }
     }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("XAU/USD · provider candles", color = Color.White, fontSize = 18.sp)
+        Text("${state.quote?.symbol ?: state.selectedProvider.instrumentLabel} · ${if (state.selectedProvider.suppliesHistoricalCandles) "provider candles" else "live quote only"}", color = Color.White, fontSize = 18.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(5 to "5m", 15 to "15m", 60 to "1h", 240 to "4h").forEach { (mins, label) ->
                 FilterChip(selected = timeframe == mins, onClick = { timeframe = mins }, label = { Text(label) })
             }
         }
-        Text("${bars.size} candles · OHLC aggregated from the provider's 5-minute series. Empty data is never replaced with a mock chart.", color = Color(0xFF9AA9B5), fontSize = 11.sp)
+        Text(if (state.selectedProvider.suppliesHistoricalCandles) "${bars.size} candles · OHLC aggregated from the provider's 5-minute series. Empty data is never replaced with a mock chart." else "Gold API's public no-key endpoint contains the current XAU/USD quote only; historical OHLC requires a provider key.", color = Color(0xFF9AA9B5), fontSize = 11.sp)
         if (bars.isEmpty()) {
             Surface(color = Color(0xFF141C23), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().height(300.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.Center) { Text("Chart unavailable", color = Color.White); Text("Configure a valid Twelve Data key and plan to load real candles.", color = Color(0xFF9AA9B5)) }
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.Center) { Text("Chart unavailable", color = Color.White); Text("${state.selectedProvider.displayName}: ${state.selectedProvider.setupDescription}", color = Color(0xFF9AA9B5)) }
             }
         } else {
             CandleChart(bars, Modifier.fillMaxWidth().weight(1f))

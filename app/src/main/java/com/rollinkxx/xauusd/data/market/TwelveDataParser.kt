@@ -1,6 +1,7 @@
 package com.rollinkxx.xauusd.data.market
 
 import com.rollinkxx.xauusd.domain.model.Candle
+import com.rollinkxx.xauusd.domain.model.MarketProviderId
 import com.rollinkxx.xauusd.domain.model.MarketQuote
 import org.json.JSONObject
 import java.time.LocalDateTime
@@ -11,13 +12,13 @@ object TwelveDataParser {
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
     fun parse(body: String, receivedAt: Long, latencyMs: Long): MarketSnapshot {
-        val json = try { JSONObject(body) } catch (_: Exception) { throw MarketDataException("Provider returned malformed JSON.") }
+        val json = try { JSONObject(body) } catch (_: Exception) { throw MarketDataException("Twelve Data returned malformed JSON.") }
         if (json.optString("status") == "error" || json.has("code")) {
-            throw MarketDataException(json.optString("message", "Provider request failed.").take(200))
+            throw MarketDataException(json.optString("message", "Twelve Data request failed.").take(200))
         }
         val symbol = json.optJSONObject("meta")?.optString("symbol")
         if (!symbol.isNullOrBlank() && !symbol.equals("XAU/USD", ignoreCase = true)) {
-            throw MarketDataException("Provider response symbol did not match XAU/USD.")
+            throw MarketDataException("Twelve Data response symbol did not match XAU/USD.")
         }
         val values = json.optJSONArray("values") ?: throw MarketDataException("No historical XAU/USD candles were returned.")
         val candles = buildList {
@@ -33,7 +34,7 @@ object TwelveDataParser {
         }.distinctBy { it.timestamp }.sortedBy { it.timestamp }.takeLast(5_000)
         if (candles.size < 2) throw MarketDataException("Provider returned fewer than two valid XAU/USD candles.")
         val last = candles.last()
-        return MarketSnapshot(MarketQuote("XAU/USD", "Twelve Data", last.close, marketTimestamp = last.timestamp,
-            receivedAt = receivedAt, latencyMs = latencyMs), candles)
+        return MarketSnapshot(MarketQuote("XAU/USD", MarketProviderId.TWELVE_DATA.displayName, last.close,
+            marketTimestamp = last.timestamp, receivedAt = receivedAt, latencyMs = latencyMs), candles)
     }
 }

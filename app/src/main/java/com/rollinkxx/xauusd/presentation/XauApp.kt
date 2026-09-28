@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rollinkxx.xauusd.domain.model.Direction
 import com.rollinkxx.xauusd.domain.model.FeedState
+import com.rollinkxx.xauusd.domain.model.MarketProviderId
 import com.rollinkxx.xauusd.domain.model.PaperPosition
 import java.time.Instant
 import java.time.ZoneId
@@ -94,7 +95,7 @@ private fun PanelCard(title: String, content: @Composable ColumnScope.() -> Unit
 @Composable
 private fun Dashboard(state: MarketUiState, onSettings: () -> Unit) {
     PageScroll {
-        PanelCard("XAU / USD · 5-minute feed") {
+        PanelCard("${state.quote?.symbol ?: state.selectedProvider.instrumentLabel} · ${if (state.selectedProvider.suppliesHistoricalCandles) "5-minute feed" else "live quote"}") {
             val quote = state.quote
             Text(quote?.last?.let { "$" + money(it) } ?: "—", fontSize = 36.sp, fontWeight = FontWeight.Bold)
             Text("Last · USD per troy ounce", fontSize = 13.sp, color = Muted)
@@ -157,20 +158,26 @@ private fun PositionsScreen(state: MarketUiState) {
     PageScroll {
         PanelCard("Active virtual positions") {
             if (state.positions.isEmpty()) Text("No open positions. New positions require a fresh feed and an eligible signal.", color = Muted)
-            state.positions.forEach { p -> PositionCard(p, state.quote?.last, state.openPnl) }
+            state.positions.forEach { p ->
+                val matchingQuote = state.quote?.takeIf { it.provider == p.provider }
+                PositionCard(p, matchingQuote?.last, state.openPnl, differentProvider = state.quote != null && matchingQuote == null)
+            }
+            if (state.positions.any { it.provider != state.selectedProvider.displayName }) {
+                Text("Positions opened under another provider are retained but not repriced or closed with this feed.", color = Muted, fontSize = 11.sp)
+            }
             Text("Paper trading only. No brokerage account or real order is connected.", color = Muted, fontSize = 11.sp)
         }
     }
 }
 
 @Composable
-private fun PositionCard(position: PaperPosition, current: Double?, openPnl: Double) {
+private fun PositionCard(position: PaperPosition, current: Double?, openPnl: Double, differentProvider: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(position.direction.name, color = if (position.direction == Direction.BUY) Mint else Red, fontWeight = FontWeight.Bold)
             Text("${"%.3f".format(Locale.US, position.quantityOz)} oz", color = Muted)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("Entry", money(position.entryPrice)); Metric("Current", current?.let(::money) ?: "—"); Metric("Open P/L", dollars(openPnl), if (openPnl >= 0) Mint else Red) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("Entry", money(position.entryPrice)); Metric("Current", current?.let(::money) ?: if (differentProvider) "Switch provider" else "—"); Metric("Open P/L", dollars(openPnl), if (openPnl >= 0) Mint else Red) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("Stop", money(position.stopLoss)); Metric("Target", money(position.takeProfit)); Metric("Score", "${position.signalScore}/100") }
         Text("${position.strategyVersion} · ${position.regime} · ${dateTime(position.openedAt)}", color = Muted, fontSize = 10.sp)
         HorizontalDivider(color = Color(0xFF26323C))
@@ -218,7 +225,7 @@ private fun StatsScreen(state: MarketUiState) {
 
 @Composable
 private fun SettingsScreen(state: MarketUiState, model: MarketViewModel) {
-    var key by remember { mutableStateOf("") }
+    var key by remember(state.selectedProvider) { mutableStateOf("") }
     var risk by remember(state.riskPercent) { mutableStateOf(state.riskPercent.toString()) }
     var spread by remember(state.spread) { mutableStateOf(state.spread.toString()) }
     var slip by remember(state.slippage) { mutableStateOf(state.slippage.toString()) }
@@ -228,15 +235,28 @@ private fun SettingsScreen(state: MarketUiState, model: MarketViewModel) {
     var confirmReset by remember { mutableStateOf(false) }
     PageScroll {
         PanelCard("Market data provider") {
-            Text("Twelve Data · XAU/USD · 5-minute candles · 5-minute refresh while app is open", color = Muted, fontSize = 12.sp)
-            Text("Use your own key and an account plan that includes XAU/USD commodities and intraday time series. Provider access was not verified because no credential is configured.", color = Muted, fontSize = 11.sp)
-            OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("Your API key") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            Text("Choose a data source. Credentials are encrypted and stored separately per provider.", color = Muted, fontSize = 12.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { model.saveApiKey(key); key = "" }, modifier = Modifier.weight(1f)) { Text("Save / Test") }
-                OutlinedButton(onClick = { model.testConnection() }, enabled = state.apiKeyConfigured && !state.isConnecting, modifier = Modifier.weight(1f)) { Text(if (state.isConnecting) "Testing…" else "Connection Test") }
+                FilterChip(selected = state.selectedProvider == MarketProviderId.TWELVE_DATA,
+                    onClick = { model.selectProvider(MarketProviderId.TWELVE_DATA) }, label = { Text("Twelve Data") })
+                FilterChip(selected = state.selectedProvider == MarketProviderId.GOLD_API_LIVE,
+                    onClick = { model.selectProvider(MarketProviderId.GOLD_API_LIVE) }, label = { Text("Gold API · no key") })
             }
-            if (state.apiKeyConfigured) OutlinedButton(onClick = { model.saveApiKey("") }, modifier = Modifier.fillMaxWidth()) { Text("Remove stored key") }
-            Text("Key is encrypted with Android Keystore and sent only over HTTPS. Do not reuse a shared application key.", color = Muted, fontSize = 11.sp)
+            Text(state.selectedProvider.instrumentLabel, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(state.selectedProvider.setupDescription, color = Muted, fontSize = 11.sp)
+            if (state.selectedProvider.requiresApiKey) {
+                OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text(state.selectedProvider.keyLabel) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { model.saveApiKey(key); key = "" }, modifier = Modifier.weight(1f)) { Text("Save & Test") }
+                    OutlinedButton(onClick = { model.testConnection() }, enabled = state.apiKeyConfigured && !state.isConnecting, modifier = Modifier.weight(1f)) { Text(if (state.isConnecting) "Testing…" else "Connection Test") }
+                }
+                if (state.apiKeyConfigured) OutlinedButton(onClick = { model.saveApiKey("") }, modifier = Modifier.fillMaxWidth()) { Text("Remove stored key") }
+            } else {
+                OutlinedButton(onClick = { model.testConnection() }, enabled = !state.isConnecting, modifier = Modifier.fillMaxWidth()) { Text(if (state.isConnecting) "Fetching…" else "Fetch live XAU/USD (no key)") }
+            }
+            if (state.statusMessage.isNotBlank()) Text(state.statusMessage, color = if (state.feed.state == FeedState.ERROR) Red else Muted, fontSize = 11.sp)
+            Text(state.feed.message, color = if (state.feed.state == FeedState.ERROR || state.feed.state == FeedState.STALE) Red else Muted, fontSize = 11.sp)
+            Text(if (state.selectedProvider.requiresApiKey) "Only this provider receives its own key over HTTPS. Do not reuse keys from other services." else "No key is sent. Cache live-price requests for at least 30 seconds; this source has no historical candles.", color = Muted, fontSize = 11.sp)
         }
         PanelCard("Paper trading assumptions") {
             NumberField("Risk per trade (%) · 0.25–2", risk, { risk = it })
@@ -255,7 +275,7 @@ private fun SettingsScreen(state: MarketUiState, model: MarketViewModel) {
             Text("Virtual balance starts at $10,000. Position size is ounces, not broker lots; the provider does not supply your broker contract specification. A 2% daily-loss limit and 30-minute cooldown after a loss are applied.", color = Muted, fontSize = 11.sp)
         }
         PanelCard("Privacy and risk") {
-            Text("No login, analytics or advertising. Your provider sends market requests when monitoring is active. Trades and settings are stored on this device. Market data is for personal non-commercial use subject to your provider's license.", color = Muted, fontSize = 12.sp)
+            Text("No login, analytics or advertising. Only the selected provider receives requests when monitoring is active. Trades and settings are stored on this device. Market data is for personal non-commercial use subject to your provider's license.", color = Muted, fontSize = 12.sp)
             Text("Paper trading only. Historical or simulated results do not guarantee future outcomes. News filter: NOT CONFIGURED.", color = Muted, fontSize = 12.sp)
             Text(state.statusMessage.ifBlank { state.feed.message }, color = if (state.feed.state == FeedState.ERROR) Red else Muted, fontSize = 11.sp)
         }
@@ -263,7 +283,7 @@ private fun SettingsScreen(state: MarketUiState, model: MarketViewModel) {
             Text("Reset deletes all local open positions and trade history and restores the virtual balance to $10,000.", color = Muted, fontSize = 12.sp)
             OutlinedButton(onClick = { confirmReset = true }, modifier = Modifier.fillMaxWidth()) { Text("Reset paper account") }
         }
-        Text("Provider data attribution: Source: Twelve Data", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 18.dp))
+        Text("Provider data attribution: ${state.selectedProvider.attribution}", color = Muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 18.dp))
     }
     if (confirmReset) AlertDialog(onDismissRequest = { confirmReset = false }, title = { Text("Reset paper account?") },
         text = { Text("This permanently deletes local virtual positions and trade history. It does not affect a broker account.") },
