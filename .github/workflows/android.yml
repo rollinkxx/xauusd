@@ -88,6 +88,7 @@ jobs:
           name: xauusd-test-reports
           path: |
             app/build/reports/tests/
+            app/build/reports/androidTests/connected/
             app/build/reports/lint-results-debug.html
             app/build/outputs/apk/
           if-no-files-found: warn

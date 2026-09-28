@@ -17,7 +17,7 @@ class AppSmokeTest {
         composeRule.onNodeWithText("XAUUSD SIGNAL LAB").assertIsDisplayed()
         composeRule.onNodeWithText("Configure market data").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").performClick()
-        composeRule.onNodeWithText("Market data provider").assertIsDisplayed()
-        composeRule.onNodeWithText("Paper trading assumptions").assertIsDisplayed()
+        composeRule.onNodeWithText("MARKET DATA PROVIDER").assertIsDisplayed()
+        composeRule.onNodeWithText("PAPER TRADING ASSUMPTIONS").assertIsDisplayed()
     }
 }
